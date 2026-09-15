@@ -1,0 +1,142 @@
+/* ============================================================ entry screen */
+.entry { position: absolute; inset: 0; pointer-events: none; }
+.entry > * { pointer-events: none; }
+
+/* --- persistent hud ------------------------------------------------------ */
+.hud {
+  position: absolute; inset: clamp(20px, 3vw, 38px) clamp(20px, 3vw, 38px) auto;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  opacity: 0; transition: opacity 900ms var(--ease-out) 400ms;
+}
+.entry.is-select .hud { opacity: 1; }
+.wordmark {
+  font-family: var(--font-display); font-weight: 700; font-size: 13px;
+  line-height: 1.24; letter-spacing: 0.18em; color: var(--ink);
+}
+.hud__meta {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+
+/* --- begin --------------------------------------------------------------- */
+.begin {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  transition: opacity 700ms var(--ease-out), transform 1100ms var(--ease-out);
+}
+.entry.is-begun .begin { opacity: 0; transform: scale(1.5); pointer-events: none; }
+
+.begin__btn {
+  pointer-events: auto;
+  position: relative;
+  width: clamp(150px, 15vw, 190px); aspect-ratio: 1;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  animation: beginIn 1400ms var(--ease-out) both;
+}
+@keyframes beginIn { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+
+.begin__ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.begin__track, .begin__sweep {
+  fill: none; stroke-width: 1;
+  transition: stroke 400ms ease, opacity 400ms ease;
+}
+.begin__track { stroke: rgba(150, 180, 255, 0.18); }
+.begin__sweep {
+  stroke: var(--a-nisarg);
+  stroke-linecap: round;
+  stroke-dasharray: 384;              /* 2 * pi * 61 */
+  stroke-dashoffset: 384;
+  opacity: 0;
+  transition: stroke-dashoffset 900ms var(--ease-out), opacity 300ms ease;
+}
+.begin__btn:hover .begin__sweep { stroke-dashoffset: 96; opacity: 0.9; }
+.begin__btn:hover .begin__track { stroke: rgba(150, 180, 255, 0.30); }
+
+.begin__label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.34em;
+  text-transform: uppercase; color: var(--ink-soft);
+  padding-left: 0.34em;               /* optical centring against the tracking */
+  transition: color 300ms ease;
+}
+.begin__btn:hover .begin__label { color: var(--ink); }
+
+/* A slow breath so the button never looks like a dead circle. */
+.begin__btn::after {
+  content: ''; position: absolute; inset: -14%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(77, 216, 255, 0.10), transparent 62%);
+  animation: breathe 4.5s ease-in-out infinite;
+}
+@keyframes breathe { 0%, 100% { opacity: 0.35; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.06); } }
+
+/* --- select -------------------------------------------------------------- */
+.select {
+  position: absolute; left: 0; right: 0; bottom: clamp(26px, 5vh, 48px);
+  display: grid; place-items: center;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+}
+.entry.is-select .select { opacity: 1; transform: translateY(0); }
+.entry.is-leaving .select { opacity: 0; }
+.select__eyebrow {
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.34em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+.select__eyebrow::before, .select__eyebrow::after {
+  content: ''; width: clamp(24px, 5vw, 60px); height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hairline-hi));
+}
+.select__eyebrow::after { background: linear-gradient(90deg, var(--hairline-hi), transparent); }
+
+/* --- planet labels ------------------------------------------------------- */
+.nodes { position: absolute; inset: 0; }
+
+.node {
+  position: absolute; top: 0; left: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 12px 10px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 200ms linear;
+  will-change: transform, opacity;
+}
+.node__owner {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink-soft));
+  transition: color 300ms ease;
+}
+.node__name {
+  font-family: var(--font-display); font-weight: 500;
+  font-size: clamp(17px, 1.5vw, 21px); line-height: 1.16;
+  letter-spacing: -0.01em; color: var(--ink);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
+  transition: color 300ms ease;
+}
+/* The stem that ties the label to its planet below it. */
+.node__rule {
+  width: 1px; height: 16px; margin-top: 4px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 60%, transparent), transparent);
+  transition: height 420ms var(--ease-out), background 300ms ease;
+}
+/* The label sits above its planet, so the button's own box misses the planet
+   entirely. This extends the hit area down over it. */
+.node::after {
+  content: '';
+  position: absolute; left: 50%; top: 100%;
+  width: 92px; height: 92px;
+  transform: translate(-50%, -12px);
+  border-radius: 50%;
+}
+
+.node:hover .node__name { color: var(--accent); }
+.node:hover .node__rule { height: 24px; }
+
+/* --- responsive ---------------------------------------------------------- */
+@media (max-width: 720px) {
+  .node__name { font-size: 15px; }
+  .node__owner { font-size: 8.5px; letter-spacing: 0.18em; }
+  .hud__meta { display: none; }
+}

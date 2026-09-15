@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  height: 100%;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The WebGL stage sits behind everything and is never scrolled. */
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+/* Every page mounts into #app, which floats above the stage. */
+#app {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  /* pages opt their own elements back into pointer events */
+  pointer-events: none;
+}
+#app > * { pointer-events: auto; }
+
+/* A soft vignette keeps the edges dark so text always reads. */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 80% at 50% 50%, transparent 38%, rgba(3,5,13,0.72) 100%);
+}
+
+/* Nothing on this site is prose to be copied, and almost everything is dragged:
+   spheres, volumes, scrubbers. A drag that strays off its target used to paint
+   a blue selection across whatever panel it crossed. Fields that take typing
+   opt back in, or the caret and the date field stop working. */
+html {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, [contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+img, svg, canvas { -webkit-user-drag: none; }
+::selection { background: transparent; }
+input::selection, textarea::selection { background: rgba(255, 157, 77, 0.35); }
+
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+:focus-visible { outline: 2px solid var(--hairline-hi); outline-offset: 3px; border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

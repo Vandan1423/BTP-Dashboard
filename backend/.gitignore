@@ -1,0 +1,7 @@
+# per-machine
+config.json
+# jobs: uploads, rendered frames, the job table
+storage/uploads/*
+storage/results/*
+storage/jobs.sqlite*
+__pycache__/

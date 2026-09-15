@@ -1,0 +1,31 @@
+/* Design tokens. Change a value here and it changes everywhere.
+   Teammates: pick your accent in lib/projects.js, not here. */
+:root {
+  /* deep space ramp */
+  --void:        #03050d;
+  --deep:        #060a18;
+  --panel:       rgba(14, 20, 40, 0.44);
+  --panel-solid: #0b1024;
+  --hairline:    rgba(150, 180, 255, 0.14);
+  --hairline-hi: rgba(180, 210, 255, 0.36);
+
+  /* type */
+  --ink:      #e9edfb;
+  --ink-soft: #a8b2cd;
+  --ink-mute: #6b7594;
+
+  /* the three project accents, mirrored from lib/projects.js */
+  --a-vandan: #ff9d4d;
+  --a-nisarg: #4dd8ff;
+  --a-sakshi: #b98cff;
+
+  --font-display: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io:   cubic-bezier(0.65, 0, 0.35, 1);
+
+  --r-lg: 20px;
+  --r-md: 12px;
+}

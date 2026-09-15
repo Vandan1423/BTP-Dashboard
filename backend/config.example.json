@@ -1,0 +1,32 @@
+{
+  "_comment": "Copy to config.json next to serve.py and edit for the machine. Keys starting with _ are ignored. Relative paths are resolved against this file's folder. Anything left out keeps the default worked out for the Mac.",
+  "_verify": "The box paths below are PLACEHOLDERS inferred from the design doc's description of the old layout, not checked on the box. Run `python3 serve.py --check` there and fix every line it marks with --.",
+
+  "host": "0.0.0.0",
+  "port": 8000,
+  "machine": "a30",
+  "machine_label": "the lab box · A30",
+  "token": "change-me",
+
+  "_paths": "The box still uses the old ~/BTP_SolarWindCME/ layout, so every pipeline path is given explicitly.",
+  "vandan_dir": "~/BTP_SolarWindCME",
+  "template_blend": "~/BTP_SolarWindCME/BlenderOutputs/SolarWindCME_space.blend",
+  "scene_script": "~/BTP_SolarWindCME/Scripts/BuildSpaceScene.py",
+  "_renders": "renders_dir must hold the Mac's layout (cme_360/, cme_360_proxy/, cme_360_thumb/, cme_360_still/, fieldlines_360/) for the 360 viewer. The box's Renders360/ does not use those names.",
+  "renders_dir": "~/BTP_SolarWindCME/renders",
+  "ephemeris_csv": "~/BTP_SolarWindCME/Scripts/camera_positions.csv",
+  "vtk_dir": "~/BTP_SolarWindCME/VTK",
+  "vdb_dir": "~/BTP_SolarWindCME/VDB",
+
+  "_interpreters": "Blender, a Python with openvdb + pyvista, and a Python with solarmach.",
+  "blender": "~/blender/blender",
+  "convert_python": "~/miniconda3/envs/vdb-convert/bin/python",
+  "ephemeris_python": "~/venv/bin/python",
+  "ffmpeg": "ffmpeg",
+
+  "frontend_dist": "../frontend/dist",
+  "storage_dir": "./storage",
+
+  "max_upload_mb": 512,
+  "keep_jobs": 40
+}

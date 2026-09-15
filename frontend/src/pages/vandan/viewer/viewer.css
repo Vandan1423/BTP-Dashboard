@@ -1,0 +1,818 @@
+/* ==========================================================================
+   THE 360 VIEWER SECTION
+   Two stages share one full-bleed layer: the overview with its orbital map,
+   and the immersive sphere. Both sit under the page's top bar and section dock
+   (z-index 3), so navigating out is always possible from either.
+   ========================================================================== */
+
+.vsec {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
+/* ============================================================== 1. OVERVIEW */
+
+.ovw {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(28px, 5vw, 88px);
+  padding: 112px clamp(28px, 6vw, 96px) 150px;
+  max-width: 1560px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* A soft scrim under the text column. The dust wave drifts behind the whole
+   page, and body copy over moving particles is genuinely hard to read. */
+.ovw::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg,
+              rgba(3, 5, 13, 0.82) 0%,
+              rgba(3, 5, 13, 0.55) 34%,
+              transparent 62%);
+}
+.ovw__copy, .ovw__map { position: relative; }
+
+.ovw__copy > *,
+.ovw__map {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 900ms var(--ease-out), transform 1000ms var(--ease-out);
+}
+.ovw.is-in .ovw__copy > * { opacity: 1; transform: none; }
+.ovw.is-in .ovw__map { opacity: 1; transform: none; }
+/* Staggered, so the eye is led down the column instead of everything
+   arriving at once. */
+.ovw__copy > *:nth-child(1) { transition-delay: 60ms; }
+.ovw__copy > *:nth-child(2) { transition-delay: 140ms; }
+.ovw__copy > *:nth-child(3) { transition-delay: 240ms; }
+.ovw__copy > *:nth-child(4) { transition-delay: 340ms; }
+.ovw__map { transition-delay: 200ms; }
+
+.ovw__eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 22px;
+}
+
+.ovw__title {
+  margin: 0 0 24px;
+  font-family: var(--font-display); font-weight: 500;
+  font-size: clamp(30px, 3.9vw, 56px); line-height: 1.04;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ovw__body {
+  margin: 0 0 38px;
+  max-width: 46ch;
+  font-size: clamp(13px, 1.05vw, 15px); line-height: 1.78;
+  color: var(--ink-soft);
+}
+
+/* The numbers that make it a measurement rather than an animation. */
+.ovw__facts {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 0;
+}
+.ovw__fact {
+  padding: 10px 14px 9px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--hairline);
+  background: rgba(8, 12, 26, 0.42);
+  backdrop-filter: blur(10px);
+  transition: border-color 400ms ease, transform 500ms var(--ease-out);
+}
+.ovw__fact:hover { border-color: var(--hairline-hi); transform: translateY(-2px); }
+.ovw__fact dt {
+  font-family: var(--font-mono); font-size: 15px; letter-spacing: -0.01em;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.ovw__fact dd {
+  margin: 4px 0 0;
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+
+/* --- the picker column --------------------------------------------------- */
+.ovw__pick { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.ovw__pickhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase;
+}
+.ovw__picklabel { color: var(--ink-soft); }
+.ovw__pickdate { color: var(--ink-mute); }
+
+@media (max-width: 1040px) {
+  .ovw {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 30px;
+    padding: 104px 24px 124px;
+    overflow-y: auto;
+  }
+  .ovw__title { font-size: clamp(26px, 6vw, 38px); }
+  .ovw__body { margin-bottom: 26px; }
+  .ovw__cards { max-width: 560px; margin-inline: auto; }
+}
+
+/* ====================================================== 2. VIEWPOINT CARDS */
+/* Two by two. Each face is a real perspective view reprojected out of that
+   planet's own sphere at the peak of the event, so choosing is a matter of
+   looking rather than reading. */
+
+.vpc {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  /* One shared vanishing point for the deck, so the cards read as four objects
+     on a surface rather than four independently skewed rectangles. */
+  perspective: 1200px;
+}
+
+.vpc__card {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: opacity 420ms ease;
+}
+
+.vpc__inner {
+  display: block;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  background: rgba(9, 13, 27, 0.72);
+  backdrop-filter: blur(10px);
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform 420ms var(--ease-out), border-color 340ms ease,
+              box-shadow 420ms ease;
+  box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9);
+}
+/* Snappier while the pointer is actually on the card; the slower transition
+   above is what makes it settle back gently on the way out. */
+.vpc__card:hover .vpc__inner { transition-duration: 90ms, 340ms, 420ms; }
+
+.vpc__card:hover .vpc__inner,
+.vpc__card:focus-visible .vpc__inner {
+  border-color: color-mix(in srgb, var(--card-accent) 55%, transparent);
+  box-shadow: 0 22px 50px -24px rgba(0, 0, 0, 0.95),
+              0 0 0 1px color-mix(in srgb, var(--card-accent) 26%, transparent),
+              0 0 44px -18px color-mix(in srgb, var(--card-accent) 80%, transparent);
+}
+.vpc__card:active .vpc__inner { transform: rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985); }
+
+/* The deck recedes so the one you are pointing at is unmistakable. */
+.vpc.is-hovering .vpc__card:not(:hover) { opacity: 0.46; }
+
+.vpc__media { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden; }
+.vpc__media img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.02);
+  transition: transform 900ms var(--ease-out), filter 500ms ease;
+  filter: saturate(0.92) brightness(0.9);
+}
+.vpc__card:hover .vpc__media img { transform: scale(1.07); filter: saturate(1) brightness(1); }
+
+/* A highlight that follows the pointer, so the face reads as a lit surface
+   rather than a flat picture being rotated. */
+.vpc__sheen {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: radial-gradient(340px circle at var(--mx) var(--my),
+              color-mix(in srgb, var(--card-accent) 26%, transparent), transparent 62%);
+  opacity: 0;
+  transition: opacity 340ms ease;
+  mix-blend-mode: screen;
+}
+.vpc__card:hover .vpc__sheen { opacity: 1; }
+
+/* Keeps the caption legible whatever the render happens to be doing. */
+.vpc__media::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(9, 13, 27, 0.92) 0%, transparent 52%);
+}
+
+.vpc__meta { display: block; padding: 11px 14px 13px; position: relative; }
+.vpc__row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.vpc__name {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--ink);
+}
+.vpc__au {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+  color: var(--card-accent); font-variant-numeric: tabular-nums;
+}
+.vpc__note {
+  display: block; margin-top: 6px;
+  font-size: 11px; line-height: 1.55; color: var(--ink-mute);
+}
+
+/* Slides up from under the caption on hover. */
+.vpc__enter {
+  position: absolute; right: 14px; bottom: 13px;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--card-accent);
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 300ms ease, transform 380ms var(--ease-out);
+}
+.vpc__enter svg { width: 13px; height: 13px; }
+.vpc__card:hover .vpc__enter,
+.vpc__card:focus-visible .vpc__enter { opacity: 1; transform: translateY(0); }
+.vpc__card:hover .vpc__note { opacity: 0.35; transition: opacity 300ms ease; }
+
+/* Where you last stood. */
+.vpc__card.is-selected .vpc__inner {
+  border-color: color-mix(in srgb, var(--card-accent) 62%, transparent);
+}
+.vpc__card.is-selected .vpc__name::after {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px; margin-left: 8px;
+  border-radius: 50%;
+  background: var(--card-accent);
+  vertical-align: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpc__inner, .vpc__media img { transition: none; transform: none !important; }
+}
+
+/* ========================================================== 3. THE SPHERE */
+
+.v360 { position: absolute; inset: 0; overflow: hidden; }
+
+/* The drag target. Transparent, covers everything, sits under the controls. */
+.v360__surface {
+  position: absolute; inset: 0;
+  cursor: grab;
+  touch-action: none;      /* or the browser scrolls the page instead of turning */
+  outline: none;
+}
+.v360__surface.is-grabbing { cursor: grabbing; }
+
+/* Vignette. Pulls the eye inward and softens the edges, where a 4096-wide
+   frame is being stretched hardest. */
+.v360::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 46%,
+              transparent 40%, rgba(3, 5, 13, 0.62) 100%);
+}
+
+/* --- loading -------------------------------------------------------------*/
+.v360__status {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 20px 13px 17px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(8, 12, 26, 0.72);
+  backdrop-filter: blur(14px);
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.v360__status.is-done { opacity: 0; transform: translate(-50%, -50%) scale(0.94); pointer-events: none; }
+.v360__status.is-error {
+  border-color: rgba(255, 120, 120, 0.4); color: #ffb0b0;
+  opacity: 1; transform: translate(-50%, -50%);
+}
+.v360__status.is-error .v360__spinner { display: none; }
+
+.v360__spinner {
+  width: 15px; height: 15px; flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline-hi);
+  border-top-color: var(--accent);
+  animation: v360-spin 780ms linear infinite;
+}
+@keyframes v360-spin { to { transform: rotate(360deg); } }
+
+/* --- the one thing that is not obvious ---------------------------------- */
+.v360__hint {
+  position: absolute; left: 50%; top: 60%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--ink-mute);
+  pointer-events: none;
+  opacity: 0;
+  animation: v360-hint-in 900ms var(--ease-out) 1700ms forwards;
+  transition: opacity 500ms ease, transform 700ms var(--ease-out);
+}
+.v360__hint.is-gone { opacity: 0 !important; transform: translateX(-50%) translateY(10px); }
+@keyframes v360-hint-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.v360__hint-ring {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--hairline-hi);
+  position: relative;
+}
+.v360__hint-ring::after {
+  content: '';
+  position: absolute; inset: -1px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: v360-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes v360-pulse {
+  0%   { transform: scale(1);   opacity: 0.75; }
+  70%  { transform: scale(1.9); opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* --- corner readout ----------------------------------------------------- */
+.v360__corner {
+  position: absolute;
+  right: clamp(20px, 3vw, 38px);
+  top: clamp(76px, 9vh, 104px);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  font-family: var(--font-mono);
+  text-align: right;
+  pointer-events: none;
+}
+.v360__layer {
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.v360__diag { font-size: 9px; letter-spacing: 0.1em; color: var(--ink-mute); opacity: 0.55; }
+
+/* ========================================================== 4. THE CONTROLS */
+/* One panel for both the single viewer and the comparison grid. It sits above
+   the page's section dock and slides out of the way while something is
+   playing, because the render is the point and this is not. */
+
+.ctlp {
+  position: absolute;
+  left: 50%;
+  bottom: calc(clamp(24px, 4vh, 44px) + 78px);
+  transform: translateX(-50%);
+  width: min(1330px, calc(100% - clamp(28px, 5vw, 72px)));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms var(--ease-out);
+}
+.ctlp.is-ready { opacity: 1; }
+
+/* --- the chevron, which never leaves ------------------------------------- */
+.ctlp__toggle {
+  pointer-events: auto;
+  width: 34px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(6, 10, 22, 0.66);
+  backdrop-filter: blur(14px);
+  color: var(--ink-mute);
+  transition: color 260ms ease, border-color 260ms ease, transform 420ms var(--ease-out);
+}
+.ctlp__toggle svg { width: 15px; height: 15px; transition: transform 420ms var(--ease-out); }
+.ctlp__toggle:hover { color: var(--ink); border-color: var(--hairline-hi); }
+.ctlp.is-hidden .ctlp__toggle svg { transform: rotate(180deg); }
+
+/* --- the panel ----------------------------------------------------------- */
+.ctlp__panel {
+  pointer-events: auto;
+  width: 100%;
+  padding: 15px 20px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--hairline);
+  background: rgba(6, 10, 22, 0.66);
+  backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.92);
+  transition: transform 620ms var(--ease-out), opacity 420ms ease;
+}
+.ctlp.is-hidden .ctlp__panel {
+  transform: translateY(calc(100% + 22px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Two clusters, and they WRAP. The controls outgrew a single nowrap row on a
+   narrow window and spilled straight out through the panel's rounded edge. */
+.ctlp__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin-top: 12px;
+}
+.ctlp__side {
+  display: flex; align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-width: 0;
+}
+/* `margin-left: auto` rather than space-between on the row: it keeps this
+   cluster hard right whether it shares a line with the transport or has
+   wrapped onto its own. space-between leaves a wrapped line stranded left. */
+.ctlp__side--end { justify-content: flex-end; margin-left: auto; }
+
+.ctlp__transport { display: flex; align-items: center; gap: 8px; }
+
+.ctlp__play, .ctlp__btn {
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: rgba(10, 15, 30, 0.6);
+  color: var(--ink);
+  flex: none;
+  transition: border-color 260ms ease, background 260ms ease,
+              transform 360ms var(--ease-out), color 260ms ease;
+}
+.ctlp__play { width: 44px; height: 44px; }
+.ctlp__play svg { width: 18px; height: 18px; margin-left: 1px; }
+.ctlp.is-playing .ctlp__play svg { margin-left: 0; }
+.ctlp__btn { width: 32px; height: 32px; color: var(--ink-soft); }
+.ctlp__btn svg { width: 13px; height: 13px; }
+
+.ctlp__play:hover, .ctlp__btn:hover {
+  transform: scale(1.08);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, rgba(10, 15, 30, 0.6));
+}
+.ctlp__play:active, .ctlp__btn:active { transform: scale(0.96); }
+
+/* A stall is exactly when you reach for pause, so the panel stays and only the
+   play button says anything is wrong. */
+.ctlp.is-buffering .ctlp__play {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  animation: ctlp-pulse 1.1s var(--ease-io) infinite;
+}
+@keyframes ctlp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); }
+  50%      { box-shadow: 0 0 0 7px transparent; }
+}
+
+/* --- readout -------------------------------------------------------------- */
+.ctlp__clock { display: flex; flex-direction: column; gap: 5px; }
+.ctlp__time {
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.05em;
+  color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ctlp__sub {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-mute); white-space: nowrap;
+}
+.ctlp__frame { font-variant-numeric: tabular-nums; }
+
+.ctlp__phase {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  transition: color 400ms ease, border-color 400ms ease, background 400ms ease;
+}
+.ctlp__phase[data-phase='onset']  { color: #ffd08a; border-color: rgba(255, 208, 138, 0.42); }
+.ctlp__phase[data-phase='peak']   {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.ctlp__phase[data-phase='fading'] { color: #b6a0ff; border-color: rgba(182, 160, 255, 0.38); }
+
+/* --- segmented groups ----------------------------------------------------- */
+.ctlp__seg {
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(10, 15, 30, 0.5);
+  flex: none;
+}
+.ctlp__opt {
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.14em;
+  color: var(--ink-mute);
+  white-space: nowrap;
+  transition: color 240ms ease, background 300ms ease;
+}
+.ctlp__view {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 13px 7px 10px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+}
+.ctlp__opt:hover { color: var(--ink); }
+.ctlp__opt.is-active {
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The colours the cards and the comparison tags use, so a viewpoint is the
+   same colour wherever it appears. */
+.ctlp__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.ctlp__dot[data-body='Mercury'] { background: #c9bda8; }
+.ctlp__dot[data-body='Venus']   { background: #f0c98a; }
+.ctlp__dot[data-body='Earth']   { background: #7fb6ff; }
+.ctlp__dot[data-body='Mars']    { background: #e08a5a; }
+
+/* --- caller's own buttons -------------------------------------------------- */
+.ctlp__actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.ctlp__action {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 15px 9px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(10, 15, 30, 0.5);
+  color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 260ms ease, border-color 260ms ease, background 300ms ease;
+}
+.ctlp__action svg { width: 15px; height: 15px; flex: none; }
+.ctlp__action:hover {
+  color: var(--ink);
+  border-color: var(--hairline-hi);
+  background: rgba(20, 28, 52, 0.6);
+}
+.ctlp__actiondot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--ink-mute);
+  transition: background 260ms ease, box-shadow 260ms ease;
+}
+.ctlp__action.is-on {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 46%, transparent);
+}
+.ctlp__action.is-on .ctlp__actiondot {
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 85%, transparent);
+}
+
+.ctlp__diag {
+  display: block;
+  margin-top: 9px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em;
+  color: var(--ink-mute); opacity: 0.5;
+}
+
+@media (max-width: 900px) {
+  .ctlp { bottom: calc(clamp(24px, 4vh, 44px) + 74px); }
+  .ctlp__row { gap: 12px 14px; }
+  .ctlp__side, .ctlp__side--end { justify-content: flex-start; }
+  .ctlp__viewname { display: none; }
+  .ctlp__view { padding: 7px 10px; }
+  .ctlp__actionlabel { display: none; }
+  .ctlp__action { padding: 9px 11px; }
+}
+
+/* ============================================================ 5. SCRUBBER */
+
+.scrub { position: relative; padding: 12px 0 4px; }
+
+.scrub__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(150, 180, 255, 0.09);
+  cursor: pointer;
+  outline: none;
+}
+.scrub__track:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* What the plasma is doing, painted onto the timeline itself. Measured
+   boundaries, not decoration: nothing happens before 160. */
+.scrub__bands { position: absolute; inset: 0; border-radius: 999px; overflow: hidden; }
+.scrub__band { position: absolute; top: 0; bottom: 0; }
+.scrub__band[data-phase='quiet']  { background: rgba(150, 180, 255, 0.06); }
+.scrub__band[data-phase='onset']  { background: rgba(255, 208, 138, 0.34); }
+.scrub__band[data-phase='peak']   { background: color-mix(in srgb, var(--accent) 78%, transparent); }
+.scrub__band[data-phase='fading'] { background: rgba(182, 160, 255, 0.42); }
+
+.scrub__fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+              rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.4));
+  pointer-events: none;
+}
+
+.scrub__head {
+  position: absolute; top: 50%;
+  width: 13px; height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(3, 5, 13, 0.7),
+              0 0 16px color-mix(in srgb, var(--accent) 80%, transparent);
+  pointer-events: none;
+  transition: transform 260ms var(--ease-out);
+}
+.scrub.is-dragging .scrub__head { transform: scale(1.28); }
+
+/* Where each phase begins. The label only appears on hover so the bar stays
+   quiet until you go looking. */
+.scrub__mark {
+  position: absolute; top: -5px; bottom: -5px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+.scrub__marklabel {
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  white-space: nowrap;
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-soft);
+  opacity: 0;
+  transition: opacity 260ms ease, transform 320ms var(--ease-out);
+}
+.scrub__track:hover .scrub__marklabel { opacity: 0.75; transform: translateX(-50%) translateY(0); }
+
+/* The date under the cursor, before you commit to it. */
+.scrub__ghost {
+  position: absolute; top: 50%;
+  width: 1px; height: 16px; margin-top: -8px;
+  background: rgba(255, 255, 255, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.scrub__track:hover .scrub__ghost { opacity: 1; }
+.scrub__ghostlabel {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(6, 10, 22, 0.92);
+  white-space: nowrap;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+
+/* --- responsive ---------------------------------------------------------- */
+@media (max-width: 900px) {
+  .ctl__row { flex-wrap: wrap; gap: 12px; }
+  .ctl__spacer { display: none; }
+  .ctl__clock { min-width: 0; order: -1; flex: 1 1 100%; }
+  .ctl__views { order: 5; flex: 1 1 100%; justify-content: space-between; }
+  .ctl__view { padding: 7px 9px; }
+  .v360__hud { bottom: calc(clamp(24px, 4vh, 44px) + 74px); }
+  .v360__hint { top: 52%; }
+}
+@media (max-width: 560px) {
+  .ctl__view span:not(.ctl__viewdot) { display: none; }
+  .ctl__view { padding: 8px 10px; }
+}
+
+/* ========================================================= 6. COMPARE GRID */
+/* Four 360 views of the same instant. The WebGL canvas draws all four through
+   scissored viewports; everything here is the chrome sitting over them. */
+
+.cmp { position: absolute; inset: 0; }
+
+.cmp__panes {
+  position: absolute;
+  left: clamp(10px, 1.4vw, 20px);
+  right: clamp(10px, 1.4vw, 20px);
+  top: 84px;
+  bottom: calc(clamp(24px, 4vh, 44px) + 78px + 128px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;                      /* must match GUTTER in CompareGrid.js */
+  transition: bottom 620ms var(--ease-out);
+}
+
+/* When the panel is put away the grid takes the space back. _layout() re-reads
+   the rectangle every frame, so the viewports follow on their own. */
+.cmp:has(.ctlp.is-hidden) .cmp__panes {
+  bottom: calc(clamp(24px, 4vh, 44px) + 40px);
+}
+
+/* Transparent: the sky underneath is painted by the renderer, not the DOM.
+   These exist to catch drags and carry a label. */
+.cmp__pane { position: relative; overflow: hidden; border-radius: var(--r-md); }
+.cmp__surface {
+  position: absolute; inset: 0;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+.cmp__surface.is-grabbing { cursor: grabbing; }
+
+/* A real border in the planet's own colour. Four skies meeting edge to edge
+   with only a hairline between them read as one confusing image. */
+.cmp__pane::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: var(--r-md);
+  border: 1.5px solid color-mix(in srgb, var(--pane) 58%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(3, 5, 13, 0.8),
+              inset 0 0 70px -26px rgba(3, 5, 13, 0.95),
+              0 0 18px -8px color-mix(in srgb, var(--pane) 55%, transparent);
+  transition: border-color 300ms ease, box-shadow 300ms ease;
+}
+.cmp__pane:hover::after {
+  border-color: color-mix(in srgb, var(--pane) 92%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(3, 5, 13, 0.75),
+              0 0 26px -6px color-mix(in srgb, var(--pane) 60%, transparent);
+}
+
+.cmp__pane[data-body='Mercury'] { --pane: #c9bda8; }
+.cmp__pane[data-body='Venus']   { --pane: #f0c98a; }
+.cmp__pane[data-body='Earth']   { --pane: #7fb6ff; }
+.cmp__pane[data-body='Mars']    { --pane: #e08a5a; }
+
+.cmp__tag {
+  position: absolute; left: 12px; top: 12px;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px 7px 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pane) 30%, var(--hairline));
+  background: rgba(6, 10, 22, 0.72);
+  backdrop-filter: blur(10px);
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink);
+  pointer-events: none;
+}
+.cmp__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--pane); }
+.cmp__au { color: var(--ink-mute); letter-spacing: 0.08em; }
+
+.cmp__load {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(3, 5, 13, 0.72);
+  transition: opacity 600ms var(--ease-out);
+}
+.cmp__load.is-done { opacity: 0; pointer-events: none; }
+.cmp__spin {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline-hi);
+  border-top-color: var(--accent);
+  animation: v360-spin 780ms linear infinite;
+}
+
+/* --- the way in from the overview ---------------------------------------- */
+.ovw__compare {
+  align-self: center;
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 4px;
+  padding: 12px 20px 12px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: rgba(8, 12, 26, 0.42);
+  backdrop-filter: blur(10px);
+  color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: color 260ms ease, border-color 260ms ease,
+              background 300ms ease, transform 420ms var(--ease-out);
+}
+.ovw__compare svg { width: 15px; height: 15px; }
+.ovw__compare:hover {
+  color: var(--ink);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, rgba(8, 12, 26, 0.42));
+}
+
+@media (max-width: 900px) {
+  .cmp__panes {
+    top: 76px;
+    bottom: calc(clamp(24px, 4vh, 44px) + 74px + 150px);
+    gap: 7px;
+  }
+  .cmp:has(.ctlp.is-hidden) .cmp__panes { bottom: calc(clamp(24px, 4vh, 44px) + 36px); }
+  .cmp__tag { left: 8px; top: 8px; padding: 5px 10px 5px 8px; font-size: 8.5px; }
+}
