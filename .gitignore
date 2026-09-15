@@ -1,21 +1,53 @@
-# macOS
+# ---------------------------------------------------------------- everywhere
 .DS_Store
-
-# Python
 __pycache__/
 *.pyc
-
-# frontend: dependencies and build output (npm install && npm run build)
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-# backend: per-machine config and job storage
-backend/config.json
-backend/storage/uploads/*
-backend/storage/results/*
-backend/storage/jobs.sqlite*
-
-# editors
+.claude/
 .vscode/
 .idea/
+
+# Python virtual environment: recreate it from Vandan/environment/
+.venv/
+
+# --------------------------------------------------------------- Dashboard
+Dashboard/frontend/node_modules/
+Dashboard/frontend/dist/
+Dashboard/frontend/.vite/
+Dashboard/backend/config.json
+Dashboard/backend/storage/uploads/*
+Dashboard/backend/storage/results/*
+Dashboard/backend/storage/jobs.sqlite*
+
+# ------------------------------------------------------------------ Vandan
+# Raw simulation data. Each .vtk is 102 MB, over GitHub's 100 MB file limit,
+# and the full volume set is 5.3 GB. See Vandan/DATA.md for how to get it.
+Vandan/input/vtk/
+Vandan/input/vdb_sequence/
+Vandan/input/ply/
+# The 201 converted volumes, except four samples so a real render can be run.
+Vandan/input/vdb/*
+!Vandan/input/vdb/data.0000.vdb
+!Vandan/input/vdb/data.0010.vdb
+!Vandan/input/vdb/data.0169.vdb
+!Vandan/input/vdb/data.0170.vdb
+
+# Frame-by-frame PNGs (7.8 GB). The videos, proxies, thumbnails and stills that
+# the dashboard plays ARE committed; only the per-frame folders are left out.
+Vandan/output/renders/cme_360/*/
+Vandan/output/renders/fieldlines_360/*/
+Vandan/output/renders/cme_flat/
+Vandan/output/experiments/
+Vandan/output/logs/
+*.blend1
+
+# Unity rebuilds all of these when the project is opened.
+Vandan/unity/*/Library/
+Vandan/unity/*/Temp/
+Vandan/unity/*/Obj/
+Vandan/unity/*/Logs/
+Vandan/unity/*/UserSettings/
+Vandan/unity/*/Build/
+Vandan/unity/*/Builds/
+Vandan/unity/*/*.csproj
+Vandan/unity/*/*.sln
+Vandan/unity/*/*.slnx

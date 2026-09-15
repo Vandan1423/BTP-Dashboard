@@ -1,49 +1,62 @@
-# Dashboard
+# BTP
 
-One site, three BTP projects. A circular BEGIN button on near-black opens into a
-galaxy; three planets orbit it, one per project. Click one and the camera dives
-through the disc onto that project's page.
-
-```bash
-cd frontend
-npm install
-npm run dev        # http://localhost:5173
-```
-
-Set `PORT` to run a second copy alongside the first.
-
-## Folder layout on disk
-
-This repository is the `Dashboard/` folder of the BTP project. The site on its
-own needs nothing else: clone it, `npm install`, `npm run dev`, and build your
-page. Two parts of Vandan's section look one folder up for his pipeline, and
-simply run without it:
+The B.Tech project: one dashboard that presents three projects, and each member's
+own work beside it.
 
 ```
 BTP/
-├── Dashboard/        <- this repository
-└── Vandan/           the solar-wind pipeline and its renders (not in this repo)
+├── Dashboard/   the website: one Vite + three.js site for all three projects
+├── Vandan/      solar wind + CME: simulation pipeline, renders, Unity VR build
+├── Nisarg/      Nisarg's project
+└── Sakshi/      Sakshi's project
 ```
 
-- the 360 viewer plays renders from `../Vandan/output/renders` (about 10 GB),
-  so it shows "Render not found" without them;
-- the render service in `backend/` runs the pipeline in `../Vandan`, so
-  VTK → Frames uses its simulator without it.
+## See the dashboard
 
-**Everything else is documented in [`frontend/README.md`](frontend/README.md)** --
-how to claim your planet, how to write your page, how to draw in 3D, and how the
-particle field works. That file sits next to the code it describes, so it is the
-one that stays true. This one exists only to point at it.
-
-`backend/` is the render service behind Vandan's VTK → Frames section: it runs
-the real conversion, camera placement and Blender render for an uploaded
-timestep, and it also serves the built site. Standard-library Python, nothing to
-install:
+Needs Node.js 20.19 or later (Vite 7).
 
 ```bash
-cd backend
-python3 serve.py            # http://localhost:8000
+cd Dashboard/frontend
+npm install
+npm run dev          # http://localhost:5173
 ```
 
-With it stopped, VTK → Frames falls back to a simulator and says so on screen.
-Everything else is a pure frontend. See [`backend/README.md`](backend/README.md).
+To add your project to the site, follow `Dashboard/frontend/README.md`. You edit
+`src/lib/projects.js` and write your page in `src/pages/<your id>/`.
+
+## Run Vandan's part
+
+**The 360 viewer works as soon as the dashboard runs.** Its videos, proxies,
+thumbnails and stills are in `Vandan/output/renders/`.
+
+**VTK → Frames works in two modes.** Without the render service it runs a
+simulator and says so on screen. To render for real, you need Blender and two
+Python environments, then start the service.
+
+1. Install Blender 5.2 from blender.org.
+2. Create the environment that converts `.vtk` to `.vdb`:
+   ```bash
+   conda env create -f Vandan/environment/vdb-convert.yml
+   ```
+3. Create the environment that queries Solar-MACH (Python 3.13):
+   ```bash
+   python3 -m venv .venv && .venv/bin/pip install -r Vandan/environment/requirements-venv.txt
+   ```
+4. Check the machine and start the service. If an interpreter is somewhere other
+   than the default, set its path in `Dashboard/backend/config.json` (see
+   `config.example.json`).
+   ```bash
+   cd Dashboard/backend
+   python3 serve.py --check
+   python3 serve.py
+   ```
+
+Reload the dashboard after the service starts. Archived timesteps 0, 10, 169 and
+170 render out of the box. Their volumes are in `Vandan/input/vdb/`.
+`Dashboard/backend/README.md` covers the rest.
+
+## What is not in this repository
+
+The raw simulation data and the frame-by-frame renders total about 22 GB. Each
+`.vtk` is over GitHub's 100 MB file limit. `Vandan/DATA.md` lists what is missing,
+what needs it, and how to get it.

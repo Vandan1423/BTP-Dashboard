@@ -1,0 +1,8 @@
+name: vdb-convert
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - pyvista
+  - openvdb
+  - python=3.11
