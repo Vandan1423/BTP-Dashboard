@@ -1,24 +1,27 @@
 /**
- * Sakshi's project page.
+ * Sakshi's project page: SEP proton-flux forecasting from relativistic
+ * electron measurements.
  *
- * The shared factory builds the whole page from this project's `sections` in
- * src/lib/projects.js -- back control, wordmark, text, and the bottom dock with
- * one button per section. Adding a section there adds a button here.
- *
- * When a section needs to render something richer than text -- a viewer, an
- * upload form, a chart -- pass `renderSection` and return an element for that
- * section's id. Returning null keeps the default title and body.
- *
- *     export default createProjectPage({
- *       renderSection(section, { project, stage, navigate }) {
- *         if (section.id !== 'viewer') return null;
- *         const el = document.createElement('div');
- *         el.textContent = 'my viewer';
- *         return el;
- *       },
- *       onLeave() { ... },     // dispose anything you created
- *     });
+ * `overview` uses the shared factory's default title/body panel (from the
+ * `sakshi` entry in src/lib/projects.js). `forecast` is a form (date range +
+ * model) that, on submit, swaps itself out for the Sun-to-Earth scene built
+ * by forecast/SunEarthScene.js -- see forecast/ForecastSection.js for the
+ * two-step flow. It owns its own three.js scene once a result is showing
+ * (borrowed from the Stage via setView) and is torn down via `dispose` on
+ * every section switch and page leave.
  */
 import { createProjectPage } from '../../ui/ProjectPage.js';
+import { createForecastSection } from './forecast/ForecastSection.js';
 
-export default createProjectPage();
+const SECTIONS = {
+  forecast: createForecastSection,
+};
+
+export default createProjectPage({
+  renderSection(section, { stage }) {
+    const build = SECTIONS[section.id];
+    if (!build) return null;
+    const s = build({ stage });
+    return { element: s.element, dispose: () => s.destroy() };
+  },
+});

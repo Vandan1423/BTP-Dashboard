@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEP Proton Flux -- Model Comparison</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>SEP Proton Flux Forecast</h1>
+  <p class="subtitle">Compare no-phase models over any date/time range and see which has the lower MAE, plus a forecast plot.</p>
+
+  <form action="/run" method="post">
+    <fieldset>
+      <legend>Time range (UTC)</legend>
+      <label for="start">Start</label>
+      <input type="datetime-local" id="start" name="start" step="300" required>
+      <label for="end">End</label>
+      <input type="datetime-local" id="end" name="end" step="300" required>
+      <p class="note">
+        Supported: any range ending on/before 2020-12-31 (NOAA's historic GOES archive),
+        or a range within the last 7 days
+        ({{ live_floor.strftime('%Y-%m-%d') }} .. {{ now.strftime('%Y-%m-%d') }}).
+        2021 through {{ live_floor.strftime('%Y-%m-%d') }} is not supported (no exact
+        &gt;10 MeV integral proton channel available there).
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Models</legend>
+      {% for key, cfg in models.items() %}
+      <div class="checkbox-row">
+        <input type="checkbox" id="{{ key }}" name="models" value="{{ key }}" checked>
+        <label for="{{ key }}">{{ cfg.label }}</label>
+      </div>
+      {% endfor %}
+    </fieldset>
+
+    <button type="submit">Run</button>
+  </form>
+</body>
+</html>
