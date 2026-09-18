@@ -51,3 +51,11 @@ Vandan/unity/*/Builds/
 Vandan/unity/*/*.csproj
 Vandan/unity/*/*.sln
 Vandan/unity/*/*.slnx
+
+# ------------------------------------------------------------------ Sakshi
+# Downloaded GOES/EPHIN data, cached on first request so repeat lookups for
+# the same period don't re-download. Regenerates automatically.
+Sakshi/backend/cache/
+# Rendered PNGs from the backend's own standalone HTML UI (not used by the
+# three.js dashboard, which reads the JSON API directly).
+Sakshi/backend/static/plots/

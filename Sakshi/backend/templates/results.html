@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Results -- SEP Proton Flux</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="back" href="/">&larr; back</a>
+  <h1>Results</h1>
+
+  {% if error %}
+    <p class="err">{{ error }}</p>
+  {% else %}
+    <p class="meta">
+      Range: <b>{{ start.strftime('%Y-%m-%d %H:%M') }} &rarr; {{ end.strftime('%Y-%m-%d %H:%M') }}</b> UTC
+      &middot; data source: <b>{{ source_kind }}</b> &middot; {{ n_rows }} rows fetched (incl. input buffer)
+    </p>
+
+    <table>
+      <tr><th>Model</th><th>Overall MAE</th><th>MAE (elevated, ln&gt;0)</th><th>MAE (event, &gt;ln10)</th><th>n scored</th></tr>
+      {% for r in results %}
+        {% if r.error %}
+          <tr><td>{{ r.label }}</td><td colspan="4" class="err">{{ r.error }}</td></tr>
+        {% else %}
+        <tr class="{{ 'best' if r.label == best else '' }}">
+          <td>{{ r.label }}{% if r.label == best %} &#9733;{% endif %}</td>
+          <td>{{ "%.3f"|format(r.mae) }}</td>
+          <td>{{ "%.3f"|format(r.mae_elevated) if r.mae_elevated is not none else "n/a" }} (n={{ r.n_elevated }})</td>
+          <td>{{ "%.3f"|format(r.mae_event) if r.mae_event is not none else "n/a" }} (n={{ r.n_event }})</td>
+          <td>{{ r.n }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </table>
+
+    {% for r in results if not r.error %}
+    <div class="card">
+      <h3>{{ r.label }}</h3>
+      <img src="/{{ r.plot_url }}" alt="{{ r.label }} forecast plot">
+    </div>
+    {% endfor %}
+  {% endif %}
+</body>
+</html>

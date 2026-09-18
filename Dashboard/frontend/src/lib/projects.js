@@ -37,6 +37,7 @@ const ICON = {
   sphere: `<circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="8.5" ry="3.4"/><path d="M12 3.5v17"/>`,
   stack:  `<path d="M12 3.6 3.8 8l8.2 4.4L20.2 8 12 3.6Z"/><path d="M3.8 12.4 12 16.8l8.2-4.4"/><path d="M3.8 16.6 12 21l8.2-4.4"/>`,
   orbit:  `<circle cx="12" cy="12" r="3.6"/><ellipse cx="12" cy="12" rx="9.4" ry="4.6" transform="rotate(-28 12 12)"/>`,
+  wave:   `<path d="M2 15c2.2-5 4.4-5 6.6 0s4.4 5 6.6 0 4.4-5 6.6 0"/>`,
 };
 
 export const PROJECTS = [
@@ -97,16 +98,30 @@ export const PROJECTS = [
   },
   {
     id: 'sakshi',
-    name: 'Project Three',
-    owner: 'Sakshi',
-    tagline: 'Claim this planet. Set your name, tagline and accent in lib/projects.js.',
-    blurb: `This planet is unclaimed. Open src/lib/projects.js, set your name, tagline
-            and accent colour, then build your page in src/pages/sakshi/index.js.`,
+    name: 'SEP Proton Flux Forecasting',
+    owner: 'Sakshi Sidhe',
+    tagline: 'Relativistic electrons outrun the protons that follow them -- enough of a head start to forecast a solar radiation storm before it arrives.',
+    blurb: `Neural networks (M1, M3-MT, M3-ML) trained on SOHO/EPHIN electron and
+            proton measurements learn the electron-proton velocity dispersion and
+            use it to forecast >10 MeV proton flux 30-60 minutes ahead. Validated
+            not just on the held-out 2000-2002 test set but on a real 2003 SEP
+            event and a live event that occurred during this project -- neither
+            seen during training.`,
     accent: '#b98cff',
     planetSize: 0.30,
     sections: [
-      { id: 'overview', label: 'Overview', icon: ICON.orbit, title: 'Your project',
-        body: 'Add as many sections as you like. Each one becomes a button in the bar below.' },
+      { id: 'overview', label: 'Overview', icon: ICON.orbit, title: 'SEP Proton Flux Forecasting',
+        body: `Solar energetic particle (SEP) events can damage spacecraft and
+               endanger astronauts. Relativistic electrons from the same eruption
+               travel far faster than the following proton flux, so a rise in
+               electron flux is an early warning sign. This project trains neural
+               networks on that precursor relationship to forecast proton flux
+               before the dangerous protons arrive -- see the Forecast tab: pick
+               any date range and model, and watch that model's real prediction
+               play out as a Sun-to-Earth particle stream.` },
+      { id: 'forecast', label: 'Forecast', icon: ICON.wave, tint: '#b98cff',
+        title: 'Forecast a real SEP event',
+        body: 'Pick a date range and model to see the forecast.' },
     ],
     load: () => import('../pages/sakshi/index.js'),
   },

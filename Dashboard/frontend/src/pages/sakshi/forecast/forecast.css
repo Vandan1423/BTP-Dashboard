@@ -1,0 +1,299 @@
+/* The particle stream flies above vertical-center (see SCENE_Y in
+   ForecastSection.js) specifically so this HUD, sitting in the page's
+   centered content grid, never overlaps it -- pushed toward the bottom of
+   the body here so there's clear air above it for the Sun-Earth path. */
+.panel:has(.fsec) { align-self: end; padding-bottom: 4vh; }
+
+.fsec {
+  position: relative;
+  width: min(92vw, 620px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none; /* the 3D scene behind should still catch pointer parallax */
+}
+
+.fsec__loading {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+
+.fsec__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.fsec__subtitle {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+}
+
+.fsec__back {
+  flex: none;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: rgba(8, 12, 26, 0.5);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+.fsec__back:hover { color: #fff; border-color: var(--hairline-hi); }
+
+.fsec__hud {
+  pointer-events: auto;
+  width: 100%;
+  background: rgba(8, 12, 26, 0.55);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  backdrop-filter: blur(14px);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fsec__badges {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 4px 10px;
+  transition: color 240ms ease, border-color 240ms ease, background 240ms ease;
+}
+.badge i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; opacity: 0.5;
+}
+.badge--pred.is-live { color: #ffcf6b; border-color: #ffcf6b; background: rgba(255, 207, 107, 0.12); }
+.badge--pred.is-live i { opacity: 1; box-shadow: 0 0 8px #ffcf6b; }
+.badge--actual.is-live { color: #ff5d5d; border-color: #ff5d5d; background: rgba(255, 93, 93, 0.12); }
+.badge--actual.is-live i { opacity: 1; box-shadow: 0 0 8px #ff5d5d; }
+
+.fsec__chart {
+  width: 100%;
+  height: 96px;
+  overflow: visible;
+}
+.chart__grid { stroke: var(--hairline); stroke-width: 0.5; }
+.chart__threshold { stroke: rgba(255, 207, 107, 0.55); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart__line { fill: none; stroke-width: 1.4; opacity: 0.9; vector-effect: non-scaling-stroke; }
+.chart__line--electron { stroke: #7fe0ff; }
+.chart__line--actual   { stroke: #ff8080; }
+.chart__line--pred     { stroke: #ffcf6b; stroke-dasharray: 4 3; }
+.chart__playhead { stroke: #fff; stroke-width: 1; opacity: 0.75; }
+
+.fsec__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.fsec__legend .dot {
+  display: inline-block;
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle;
+}
+.dot--electron { background: #7fe0ff; }
+.dot--actual   { background: #ff8080; }
+.dot--pred     { background: #ffcf6b; }
+
+.fsec__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.fsec__play {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 12px;
+  flex: none;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.fsec__play:hover { border-color: var(--hairline-hi); color: #fff; }
+
+.fsec__scrub {
+  flex: 1;
+  accent-color: var(--accent, #b98cff);
+}
+
+.fsec__clock {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  min-width: 108px;
+  text-align: right;
+}
+
+.fsec__readout {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 480px) {
+  .fsec { width: 94vw; }
+  .fsec__hud { padding: 12px 12px 10px; }
+  .fsec__clock { min-width: 0; }
+}
+
+/* ====================================================== the entry form ===
+   Shown alone (see ForecastSection.js's showForm/showResult) -- never at
+   the same time as .fsec above, so there is nothing for it to overlap. */
+/* This is the direct child ProjectPage.js appends into .panel, so it keeps
+   the page's normal fade/slide entrance transition (page.css's `.panel > *`)
+   -- centers whichever single child it currently holds (the form, or the
+   back button + SunEarthScene's .fsec after a run). */
+.fform-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.fform {
+  pointer-events: auto;
+  width: min(94vw, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fform__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(8, 12, 26, 0.55);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  backdrop-filter: blur(14px);
+  padding: 16px 18px;
+}
+
+.fform__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+}
+
+.fform__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fform__field label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.fform__field input[type=datetime-local] {
+  padding: 8px 10px;
+  font-size: 0.85em;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--font-body);
+  color-scheme: dark;
+}
+.fform__field input[type=datetime-local]:focus {
+  outline: none;
+  border-color: var(--accent, #b98cff);
+}
+
+.fform__field--model { flex: 1; min-width: 200px; }
+.fform__models { display: flex; gap: 10px; flex-wrap: wrap; }
+.fform__model {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82em;
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
+}
+.fform__model input { accent-color: var(--accent, #b98cff); }
+.fform__model:has(input:checked) {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent, #b98cff) 55%, transparent);
+  background: color-mix(in srgb, var(--accent, #b98cff) 16%, transparent);
+}
+
+.fform__run {
+  padding: 9px 22px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: var(--accent, #b98cff);
+  color: #0b0d18;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 150ms ease, opacity 150ms ease;
+}
+.fform__run:hover { filter: brightness(1.1); }
+.fform__run:disabled { opacity: 0.5; cursor: default; }
+
+.fform__hint {
+  margin: 0;
+  font-size: 0.78em;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+
+.fform__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.fform__status.is-error { color: #ff8080; }
+.fform__error { color: #ff8080; font-size: 0.85em; }
+
+
+@media (max-width: 640px) {
+  .fform__row { flex-direction: column; align-items: stretch; }
+  .fform__run { width: 100%; }
+}
