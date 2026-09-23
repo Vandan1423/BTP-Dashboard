@@ -4,7 +4,7 @@ falls inside the user's requested [start, end] window (the extra buffer rows bef
 `start` exist purely so those early targets have a full 24-step input window to draw
 on -- they are never themselves scored or plotted as predictions).
 
-Two families of model:
+Three families of model:
   - no-phase (m1_noph, m3_mlnoph): usable on ANY supported range, historic or live.
   - phase (m1, m3_ml): need background/rising/falling as an input feature. The
     original labels are retrospective (a row is "rising" only because a future peak
@@ -15,7 +15,15 @@ Two families of model:
     agreement against the real training labels; see
     analysis/validate_historic_phases.py). app.py rejects a phase model against a
     `live` range before ever calling in here.
+  - baselines (posner, persistent): classical, non-neural methods from the report's
+    Sec. 4/6 comparison, included here so a visitor can see the same head-to-head on
+    live data too. Neither takes phase input, so both run on any supported range.
+    `persistent` needs no stored artifact (it's just "predict today's value
+    unchanged"); `posner` ships a small frozen lookup table (fit once from the
+    original training split, see models/posner/posner_matrix.json) rather than
+    retraining the matrix from raw data on every boot.
 """
+import json
 import os
 import sys
 import numpy as np
@@ -36,15 +44,78 @@ LN10 = np.log(10)
 
 MODEL_CONFIGS = {
     "m1_noph": {"label": "M1 (no phase)", "kind": "single", "use_phase": False,
+                "family": "m1", "has_phase_variant": True,
                 "path": os.path.join(HERE, "models", "m1_noph", "model.keras")},
     "m3_mlnoph": {"label": "M3-ML (no phase)", "kind": "m3ml", "use_phase": False,
+                  "family": "m3_ml", "has_phase_variant": True,
                   "path": os.path.join(HERE, "models", "m3_mlnoph")},
     "m1": {"label": "M1 (phase)", "kind": "single", "use_phase": True,
+           "family": "m1", "has_phase_variant": True,
            "path": os.path.join(HERE, "models", "m1", "model.keras")},
     "m3_ml": {"label": "M3-ML (phase)", "kind": "m3ml", "use_phase": True,
+              "family": "m3_ml", "has_phase_variant": True,
               "path": os.path.join(HERE, "models", "m3_ml")},
+    "posner": {"label": "Posner (2007)", "kind": "posner", "use_phase": False,
+               "family": "posner", "has_phase_variant": False,
+               "path": os.path.join(HERE, "models", "posner", "posner_matrix.json")},
+    "persistent": {"label": "Persistent", "kind": "persistent", "use_phase": False,
+                   "family": "persistent", "has_phase_variant": False,
+                   "path": None},
 }
-PT = 6   # all four models were trained with prediction_time=6 (30 min ahead)
+# families in a fixed, sensible display order for the dashboard's model picker
+FAMILIES = [
+    {"id": "m1", "label": "M1", "has_phase_variant": True},
+    {"id": "m3_ml", "label": "M3-ML", "has_phase_variant": True},
+    {"id": "posner", "label": "Posner (2007)", "has_phase_variant": False},
+    {"id": "persistent", "label": "Persistent", "has_phase_variant": False},
+]
+PT = 6   # all models here were trained/fit with prediction_time=6 (30 min ahead)
+
+_posner_cache = {}
+
+
+def _load_posner(path):
+    if path not in _posner_cache:
+        with open(path) as f:
+            raw = json.load(f)
+        model = np.array([[np.nan if v is None else v for v in row] for row in raw["model"]])
+        range_matrix = raw["range_matrix"]  # [i][j] = [[lo_int, hi_int], [lo_slope, hi_slope]]
+        _posner_cache[path] = (model, range_matrix)
+    return _posner_cache[path]
+
+
+def _posner_predict_one(electron_t, log_max_rise, model, range_matrix):
+    min_intensity, max_intensity = range_matrix[-1][0][0][0], range_matrix[0][0][0][1]
+    min_slope, max_slope = range_matrix[0][0][1][0], range_matrix[0][-1][1][1]
+    electron_t = min(max(electron_t, min_intensity), max_intensity)
+    log_max_rise = min(max(log_max_rise, min_slope), max_slope)
+    for i, row in enumerate(range_matrix):
+        for j, ((lo_i, hi_i), (lo_s, hi_s)) in enumerate(row):
+            hi_i_ok = electron_t < hi_i or (i == 0 and electron_t == max_intensity)
+            hi_s_ok = log_max_rise < hi_s or (j == len(row) - 1 and log_max_rise == max_slope)
+            if lo_i <= electron_t and hi_i_ok and lo_s <= log_max_rise and hi_s_ok:
+                return model[i][j]
+    return model[-1][-1]   # unreachable in practice; clip already guarantees a match
+
+
+def _predict_posner_full(df, pt, path):
+    """Posner's own feature definition (electron level + 12-step rise, clamped),
+    computed straight from the raw electron column -- mirrors
+    ElectronInput/posner_method.py's pair_input_output() exactly, including its
+    reach one step past `t` for the last rise term, which is why this needs the
+    raw df rather than the model's own 24-step input window."""
+    model, range_matrix = _load_posner(path)
+    electron = df["electron"].to_numpy()
+    n = len(df)
+    preds = []
+    for t in range(24, n - pt):
+        max_rise = (electron[t - 12] - electron[t - 11]) / 5
+        for interval in range(11, -1, -1):
+            max_rise = max(max_rise, (electron[t - interval] - electron[t - interval + 1]) / 5)
+        max_rise = min(max(max_rise, 1e-2), 0.2)
+        electron_t = electron[t]
+        preds.append(_posner_predict_one(electron_t, np.log(max_rise), model, range_matrix))
+    return np.array(preds, dtype=float)
 
 
 def build_windows(df, pt, use_phase=False):
@@ -86,9 +157,25 @@ def _predict(cfg, x):
     if cfg["kind"] == "single":
         model = load_model(cfg["path"])
         return model.predict(x, verbose=0).flatten()
-    models = load_m3ml_models(cfg["path"])
-    preds, _ = predict_m3ml(models, x)
-    return preds
+    if cfg["kind"] == "m3ml":
+        models = load_m3ml_models(cfg["path"])
+        preds, _ = predict_m3ml(models, x)
+        return preds
+    if cfg["kind"] == "persistent":
+        # "predict today's value, unchanged" -- the last step of each window's own
+        # proton channel (feature order from build_windows: electron, electron_high,
+        # proton, ...). No stored model needed.
+        return x[:, -1, 2].astype(float)
+    raise ValueError(f"unknown model kind for _predict: {cfg['kind']!r}")
+
+
+def _predict_for(cfg, df, x_s, mask):
+    """posner needs the raw electron column (its feature definition reaches one step
+    past each window's own end -- see _predict_posner_full), so it's computed over
+    the full range and masked afterward rather than fed x_s like the other kinds."""
+    if cfg["kind"] == "posner":
+        return _predict_posner_full(df, PT, cfg["path"])[mask]
+    return _predict(cfg, x_s)
 
 
 def evaluate_model(model_name, df, start, end, out_png):
@@ -101,7 +188,7 @@ def evaluate_model(model_name, df, start, end, out_png):
     if len(x_s) == 0:
         raise ValueError("No scoreable rows in the requested range (range too short vs. buffer/horizon).")
 
-    preds = _predict(cfg, x_s)
+    preds = _predict_for(cfg, df, x_s, mask)
 
     abserr = np.abs(preds - y_s)
     metrics = {
@@ -134,7 +221,7 @@ def evaluate_series(model_name, df, start, end):
     if len(x_s) == 0:
         raise ValueError("No scoreable rows in the requested range (range too short vs. buffer/horizon).")
 
-    preds = _predict(cfg, x_s)
+    preds = _predict_for(cfg, df, x_s, mask)
 
     abserr = np.abs(preds - y_s)
     metrics = {

@@ -219,6 +219,13 @@
   flex-direction: column;
   gap: 5px;
 }
+.fform__field[hidden] {
+  /* `.fform__field{display:flex}` above and the browser's default
+     `[hidden]{display:none}` have equal specificity, and this author rule
+     wins -- so the bare `hidden` attribute alone silently does nothing here
+     without this explicit override. */
+  display: none;
+}
 .fform__field label {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -243,6 +250,9 @@
 
 .fform__field--model { flex: 1; min-width: 200px; }
 .fform__models { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.fform__field--phase { flex: 1; min-width: 160px; }
+.fform__phase { display: flex; gap: 10px; flex-wrap: wrap; }
 .fform__model {
   display: inline-flex;
   align-items: center;

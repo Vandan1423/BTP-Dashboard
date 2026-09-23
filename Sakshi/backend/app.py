@@ -13,7 +13,7 @@ import uuid
 from flask import Flask, jsonify, render_template, request
 
 from data_fetch import build_dataset, classify_range, UnsupportedRangeError
-from model_eval import evaluate_model, evaluate_series, MODEL_CONFIGS
+from model_eval import evaluate_model, evaluate_series, MODEL_CONFIGS, FAMILIES
 
 app = Flask(__name__)
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), "static", "plots")
@@ -97,7 +97,22 @@ def run():
 
 @app.route("/api/models", methods=["GET"])
 def api_models():
-    return jsonify([{"id": k, "label": v["label"]} for k, v in MODEL_CONFIGS.items()])
+    # Flat list (back-compat for anything reading {id, label}) plus a `families`
+    # grouping so the dashboard can build a two-step "family, then phase" picker
+    # without hardcoding which ids pair up with which.
+    flat = [{"id": k, "label": v["label"], "family": v["family"],
+             "use_phase": v["use_phase"]} for k, v in MODEL_CONFIGS.items()]
+    families = []
+    for fam in FAMILIES:
+        variants = {k: v for k, v in MODEL_CONFIGS.items() if v["family"] == fam["id"]}
+        if fam["has_phase_variant"]:
+            noph = next(k for k, v in variants.items() if not v["use_phase"])
+            ph = next(k for k, v in variants.items() if v["use_phase"])
+            families.append({**fam, "no_phase_id": noph, "phase_id": ph})
+        else:
+            (only_id,) = variants.keys()
+            families.append({**fam, "model_id": only_id})
+    return jsonify({"models": flat, "families": families})
 
 
 @app.route("/api/forecast", methods=["POST", "OPTIONS"])

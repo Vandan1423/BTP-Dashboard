@@ -27,7 +27,17 @@ export function createForecastSection({ stage }) {
   element.className = 'fform-wrap';
 
   let activeScene = null;
-  let modelId = null;
+  let families = [];
+  let familyId = null;
+  let phaseOn = false;
+
+  // The id actually sent to /api/forecast: for M1/M3-ML it depends on the phase
+  // toggle; Posner/Persistent are single models with no phase concept at all.
+  function resolveModelId() {
+    const fam = families.find((f) => f.id === familyId);
+    if (!fam) return null;
+    return fam.has_phase_variant ? (phaseOn ? fam.phase_id : fam.no_phase_id) : fam.model_id;
+  }
 
   function showForm() {
     activeScene?.destroy();
@@ -50,6 +60,10 @@ export function createForecastSection({ stage }) {
               <label>Model</label>
               <div class="fform__models"></div>
             </div>
+            <div class="fform__field fform__field--phase" hidden>
+              <label>Phase input</label>
+              <div class="fform__phase"></div>
+            </div>
             <button class="fform__run" type="submit">Run</button>
           </div>
         </form>
@@ -57,7 +71,9 @@ export function createForecastSection({ stage }) {
           Supported: any range ending on/before 2020-12-31, or within the last 7 days
           (${liveFloor.toISOString().slice(0, 10)} .. ${now.toISOString().slice(0, 10)}).
           2021 through ${liveFloor.toISOString().slice(0, 10)} is not supported (no exact
-          &gt;10&nbsp;MeV integral proton channel available there).
+          &gt;10&nbsp;MeV integral proton channel available there). Phase inputs (M1/M3-ML)
+          only work on historic ranges -- the future they rely on hasn't happened yet on a
+          live range.
         </p>
         <div class="fform__status" hidden></div>
       </div>`;
@@ -66,6 +82,8 @@ export function createForecastSection({ stage }) {
     const startInput = element.querySelector('#fstart');
     const endInput = element.querySelector('#fend');
     const modelsWrap = element.querySelector('.fform__models');
+    const phaseField = element.querySelector('.fform__field--phase');
+    const phaseWrap = element.querySelector('.fform__phase');
     const runBtn = element.querySelector('.fform__run');
     const statusEl = element.querySelector('.fform__status');
 
@@ -74,16 +92,44 @@ export function createForecastSection({ stage }) {
     endInput.value = toLocalInput(now);
     startInput.value = toLocalInput(new Date(now.getTime() - 12 * 3600000));
 
-    fetch(`${API_BASE}/api/models`).then((r) => r.json()).then((models) => {
-      modelsWrap.innerHTML = models.map((m, i) => `
-        <label class="fform__model">
-          <input type="radio" name="fmodel" value="${m.id}" ${i === 0 ? 'checked' : ''}>
-          <span>${m.label}</span>
-        </label>`).join('');
-      modelId = models[0]?.id ?? null;
-      for (const r of modelsWrap.querySelectorAll('input')) {
-        r.addEventListener('change', () => { modelId = r.value; });
+    function renderPhaseToggle() {
+      const fam = families.find((f) => f.id === familyId);
+      if (!fam || !fam.has_phase_variant) {
+        phaseField.hidden = true;
+        return;
       }
+      phaseField.hidden = false;
+      phaseWrap.innerHTML = `
+        <label class="fform__model">
+          <input type="radio" name="fphase" value="0" ${!phaseOn ? 'checked' : ''}>
+          <span>No phase</span>
+        </label>
+        <label class="fform__model">
+          <input type="radio" name="fphase" value="1" ${phaseOn ? 'checked' : ''}>
+          <span>With phase</span>
+        </label>`;
+      for (const r of phaseWrap.querySelectorAll('input')) {
+        r.addEventListener('change', () => { phaseOn = r.value === '1'; });
+      }
+    }
+
+    fetch(`${API_BASE}/api/models`).then((r) => r.json()).then(({ families: fams }) => {
+      families = fams;
+      familyId = fams[0]?.id ?? null;
+      phaseOn = false;
+      modelsWrap.innerHTML = fams.map((f, i) => `
+        <label class="fform__model">
+          <input type="radio" name="ffamily" value="${f.id}" ${i === 0 ? 'checked' : ''}>
+          <span>${f.label}</span>
+        </label>`).join('');
+      for (const r of modelsWrap.querySelectorAll('input')) {
+        r.addEventListener('change', () => {
+          familyId = r.value;
+          phaseOn = false;
+          renderPhaseToggle();
+        });
+      }
+      renderPhaseToggle();
     }).catch(() => {
       modelsWrap.innerHTML = `<p class="fform__error">Could not reach the forecast API at ${API_BASE}.</p>`;
     });
@@ -96,6 +142,7 @@ export function createForecastSection({ stage }) {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const modelId = resolveModelId();
       if (!modelId) { setStatus('No model selected.', true); return; }
       const start = startInput.value, end = endInput.value;
       if (!start || !end) { setStatus('Pick both a start and end time.', true); return; }
