@@ -8,7 +8,8 @@ BTP/
 ├── Dashboard/   the website: one Vite + three.js site for all three projects
 ├── Vandan/      solar wind + CME: simulation pipeline, renders, Unity VR build
 ├── Nisarg/      Nisarg's project
-└── Sakshi/      Sakshi's project
+└── Sakshi/      SEP proton flux forecasting: ML models, historic phase
+               reconstruction, Flask API + Sun-Earth forecast visualization
 ```
 
 ## See the dashboard
@@ -54,6 +55,27 @@ Python environments, then start the service.
 Reload the dashboard after the service starts. Archived timesteps 0, 10, 169 and
 170 render out of the box. Their volumes are in `Vandan/input/vdb/`.
 `Dashboard/backend/README.md` covers the rest.
+
+## Run Sakshi's part
+
+**The Forecast tab needs its own backend running.** It's not started with the
+dashboard — start it separately, in its own terminal:
+
+```bash
+cd Sakshi/backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python app.py          # http://127.0.0.1:5050
+```
+
+Reload the dashboard once it's up. The Forecast tab talks to `127.0.0.1:5050` by
+default (see `VITE_FORECAST_API` in `ForecastSection.js` to point it elsewhere).
+Pick a model family — M1, M3-ML, Posner, or Persistent — and, for M1/M3-ML,
+whether to use phase input. Phase variants only work on historic ranges (through
+2020-12-31); everything works on the trailing 7 days too, no-phase/baseline only,
+since phase labels need a known future. All model weights are bundled in
+`Sakshi/backend/models/`, so nothing else needs downloading.
+`Sakshi/README.md` and `Sakshi/backend/README.md` cover the rest.
 
 ## What is not in this repository
 
