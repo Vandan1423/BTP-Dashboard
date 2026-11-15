@@ -18,11 +18,11 @@
       <label for="end">End</label>
       <input type="datetime-local" id="end" name="end" step="300" required>
       <p class="note">
-        Supported: any range ending on/before 2020-12-31 (NOAA's historic GOES archive),
-        or a range within the last 7 days
-        ({{ live_floor.strftime('%Y-%m-%d') }} .. {{ now.strftime('%Y-%m-%d') }}).
-        2021 through {{ live_floor.strftime('%Y-%m-%d') }} is not supported (no exact
-        &gt;10 MeV integral proton channel available there).
+        Supported, by date range and satellite:
+        <br>&bull; up to {{ aditya_start.strftime('%Y-%m-%d') }}: <strong>NASA ACE</strong> (EPAM instrument, P8 channel proxy)
+        <br>&bull; {{ aditya_start.strftime('%Y-%m-%d') }} .. {{ live_floor.strftime('%Y-%m-%d') }}: <strong>ISRO Aditya-L1</strong> (ASPEX/STEPS, only for already-downloaded windows)
+        <br>&bull; {{ live_floor.strftime('%Y-%m-%d') }} .. {{ now.strftime('%Y-%m-%d') }}: <strong>NOAA GOES</strong> (live, last 7 days)
+        <br>Electrons are always SOHO/EPHIN. A range can't straddle two of these.
       </p>
     </fieldset>
 

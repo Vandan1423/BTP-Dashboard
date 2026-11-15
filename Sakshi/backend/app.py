@@ -12,7 +12,7 @@ import os
 import uuid
 from flask import Flask, jsonify, render_template, request
 
-from data_fetch import build_dataset, classify_range, UnsupportedRangeError
+from data_fetch import build_dataset, classify_range, UnsupportedRangeError, ADITYA_START
 from model_eval import evaluate_model, evaluate_series, MODEL_CONFIGS, FAMILIES
 
 app = Flask(__name__)
@@ -35,7 +35,8 @@ def add_cors_headers(resp):
 def index():
     now = dt.datetime.utcnow()
     return render_template("index.html", models=MODEL_CONFIGS, now=now,
-                            live_floor=now - dt.timedelta(days=7))
+                            live_floor=now - dt.timedelta(days=7),
+                            aditya_start=ADITYA_START)
 
 
 @app.route("/run", methods=["POST"])
@@ -69,11 +70,11 @@ def run():
 
     results = []
     for name in selected:
-        if MODEL_CONFIGS[name]["use_phase"] and source_kind != "historic":
+        if MODEL_CONFIGS[name]["use_phase"] and source_kind == "live":
             results.append({
                 "label": MODEL_CONFIGS[name]["label"],
-                "error": "needs phase inputs, only computable for historic ranges "
-                         "(ending on/before 2020-12-31) -- not for a live range.",
+                "error": "needs phase inputs, only computable for a fully-known-in-advance "
+                         "range (ACE/EPAM or Aditya-L1) -- not for a live range.",
             })
             continue
         plot_name = f"{uuid.uuid4().hex}.png"
@@ -141,19 +142,19 @@ def api_forecast():
         # Phase models (m1, m3_ml) need background/rising/falling as an input
         # feature. Those labels are retrospective -- a row is only "rising" because
         # a future peak is already known -- which historic_phases.py can compute
-        # honestly for a `historic` range (the whole thing, "future" included, is
-        # already fetched), but is fundamentally impossible for `live` data, where
-        # the actual future hasn't happened yet. No heuristic substitute is used
-        # here on purpose: estimate_phase.py's causal guess was tested earlier and
-        # found unreliable (helped one real event, hurt another).
-        if MODEL_CONFIGS[model_name]["use_phase"] and source_kind != "historic":
+        # honestly for any fully-known-in-advance range (ACE/EPAM or Aditya-L1 -- the
+        # whole thing, "future" included, is already fetched), but is
+        # fundamentally impossible for `live` data, where the actual future hasn't
+        # happened yet. No heuristic substitute is used here on purpose:
+        # estimate_phase.py's causal guess was tested earlier and found unreliable
+        # (helped one real event, hurt another).
+        if MODEL_CONFIGS[model_name]["use_phase"] and source_kind == "live":
             return jsonify({
                 "error": f"{MODEL_CONFIGS[model_name]['label']} needs phase (background/"
                          f"rising/falling) as a model input, which can only be computed "
-                         f"honestly for historic data (ending on/before 2020-12-31) -- "
-                         f"not for a live range, where the actual future hasn't happened "
-                         f"yet. Pick a no-phase model for live ranges, or a historic range "
-                         f"for this model."
+                         f"honestly for a fully-known-in-advance range (ACE/EPAM or "
+                         f"Aditya-L1) -- not for a live range, where the actual future "
+                         f"hasn't happened yet. Pick a no-phase model for live ranges."
             }), 400
         result = evaluate_series(model_name, df, start, end)
     except UnsupportedRangeError as e:
