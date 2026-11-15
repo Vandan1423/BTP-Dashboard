@@ -13,15 +13,24 @@
  * There is no default/example event loaded on open -- the form is the only
  * way in, and nothing renders until you run it.
  */
-import { createSunEarthScene } from './SunEarthScene.js';
+import { createSunEarthScene, applySunEarthSpan } from './SunEarthScene.js';
 import './forecast.css';
 
 const API_BASE = import.meta.env.VITE_FORECAST_API ?? 'http://127.0.0.1:5050';
 
+// One format everywhere in this section: ISO date (YYYY-MM-DD) + 24h clock
+// (HH:MM), always labeled UTC, never AM/PM and never a browser-locale-
+// dependent native datetime-local picker (which renders differently, and
+// often in 12h AM/PM, depending on the viewer's OS/browser locale).
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const fmtDate = (d) => d.toISOString().slice(0, 10);
+const fmtTime = (d) => d.toISOString().slice(11, 16);
+
 export function createForecastSection({ stage }) {
   const now = new Date();
   const liveFloor = new Date(now.getTime() - 7 * 86400000);
-  const toLocalInput = (d) => d.toISOString().slice(0, 16);
+  const adityaStart = new Date('2023-09-10');
 
   const element = document.createElement('div');
   element.className = 'fform-wrap';
@@ -30,6 +39,7 @@ export function createForecastSection({ stage }) {
   let families = [];
   let familyId = null;
   let phaseOn = false;
+  let stopFormSpan = null;
 
   // The id actually sent to /api/forecast: for M1/M3-ML it depends on the phase
   // toggle; Posner/Persistent are single models with no phase concept at all.
@@ -42,17 +52,30 @@ export function createForecastSection({ stage }) {
   function showForm() {
     activeScene?.destroy();
     activeScene = null;
+    stopFormSpan?.();
     element.innerHTML = `
       <div class="fform">
         <form class="fform__form">
           <div class="fform__row">
-            <div class="fform__field">
-              <label for="fstart">Start (UTC)</label>
-              <input id="fstart" type="datetime-local" step="300" required>
+            <div class="fform__field fform__field--date">
+              <label for="fstart-date">Start date (UTC)</label>
+              <input id="fstart-date" class="fform__dt" type="text" inputmode="numeric"
+                     placeholder="YYYY-MM-DD" pattern="\\d{4}-\\d{2}-\\d{2}" maxlength="10" required>
             </div>
-            <div class="fform__field">
-              <label for="fend">End (UTC)</label>
-              <input id="fend" type="datetime-local" step="300" required>
+            <div class="fform__field fform__field--time">
+              <label for="fstart-time">Start time (UTC, 24h)</label>
+              <input id="fstart-time" class="fform__dt" type="text" inputmode="numeric"
+                     placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" required>
+            </div>
+            <div class="fform__field fform__field--date">
+              <label for="fend-date">End date (UTC)</label>
+              <input id="fend-date" class="fform__dt" type="text" inputmode="numeric"
+                     placeholder="YYYY-MM-DD" pattern="\\d{4}-\\d{2}-\\d{2}" maxlength="10" required>
+            </div>
+            <div class="fform__field fform__field--time">
+              <label for="fend-time">End time (UTC, 24h)</label>
+              <input id="fend-time" class="fform__dt" type="text" inputmode="numeric"
+                     placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" required>
             </div>
           </div>
           <div class="fform__row">
@@ -68,19 +91,24 @@ export function createForecastSection({ stage }) {
           </div>
         </form>
         <p class="fform__hint">
-          Supported: any range ending on/before 2020-12-31, or within the last 7 days
-          (${liveFloor.toISOString().slice(0, 10)} .. ${now.toISOString().slice(0, 10)}).
-          2021 through ${liveFloor.toISOString().slice(0, 10)} is not supported (no exact
-          &gt;10&nbsp;MeV integral proton channel available there). Phase inputs (M1/M3-ML)
-          only work on historic ranges -- the future they rely on hasn't happened yet on a
-          live range.
+          Supported, by date range and satellite:
+          <br>&bull; up to ${fmtDate(adityaStart)}: <strong>NASA&nbsp;ACE</strong> (EPAM instrument, P8 channel proxy)
+          <br>&bull; ${fmtDate(adityaStart)} .. ${fmtDate(liveFloor)}: <strong>ISRO&nbsp;Aditya-L1</strong> (ASPEX/STEPS, only for already-downloaded windows)
+          <br>&bull; ${fmtDate(liveFloor)} .. ${fmtDate(now)}: <strong>NOAA&nbsp;GOES</strong> (live, last 7 days)
+          <br>Electrons are always SOHO/EPHIN. A range can't straddle two of these.
+          Phase inputs (M1/M3-ML) work on either of the first two (the future they rely on
+          is already known) -- just not on a live range.
         </p>
         <div class="fform__status" hidden></div>
       </div>`;
 
+    stopFormSpan = applySunEarthSpan(element.querySelector('.fform'));
+
     const form = element.querySelector('.fform__form');
-    const startInput = element.querySelector('#fstart');
-    const endInput = element.querySelector('#fend');
+    const startDateInput = element.querySelector('#fstart-date');
+    const startTimeInput = element.querySelector('#fstart-time');
+    const endDateInput = element.querySelector('#fend-date');
+    const endTimeInput = element.querySelector('#fend-time');
     const modelsWrap = element.querySelector('.fform__models');
     const phaseField = element.querySelector('.fform__field--phase');
     const phaseWrap = element.querySelector('.fform__phase');
@@ -89,8 +117,11 @@ export function createForecastSection({ stage }) {
 
     // Defaults: the last 12 hours of the live-supported window, so the form
     // opens on something that will actually run rather than an empty picker.
-    endInput.value = toLocalInput(now);
-    startInput.value = toLocalInput(new Date(now.getTime() - 12 * 3600000));
+    const defaultStart = new Date(now.getTime() - 12 * 3600000);
+    endDateInput.value = fmtDate(now);
+    endTimeInput.value = fmtTime(now);
+    startDateInput.value = fmtDate(defaultStart);
+    startTimeInput.value = fmtTime(defaultStart);
 
     function renderPhaseToggle() {
       const fam = families.find((f) => f.id === familyId);
@@ -144,8 +175,18 @@ export function createForecastSection({ stage }) {
       e.preventDefault();
       const modelId = resolveModelId();
       if (!modelId) { setStatus('No model selected.', true); return; }
-      const start = startInput.value, end = endInput.value;
-      if (!start || !end) { setStatus('Pick both a start and end time.', true); return; }
+      const startDate = startDateInput.value.trim(), startTime = startTimeInput.value.trim();
+      const endDate = endDateInput.value.trim(), endTime = endTimeInput.value.trim();
+      if (!startDate || !startTime || !endDate || !endTime) {
+        setStatus('Pick both a start and end date/time.', true); return;
+      }
+      if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
+        setStatus('Dates must be in YYYY-MM-DD format.', true); return;
+      }
+      if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime)) {
+        setStatus('Times must be in 24h HH:MM format (UTC).', true); return;
+      }
+      const start = `${startDate}T${startTime}`, end = `${endDate}T${endTime}`;
 
       runBtn.disabled = true;
       setStatus('Fetching data and running the model…');
@@ -174,6 +215,8 @@ export function createForecastSection({ stage }) {
   }
 
   function showResult(json, start, end) {
+    stopFormSpan?.();
+    stopFormSpan = null;
     element.innerHTML = '';
 
     const m = json.metrics;
@@ -196,6 +239,8 @@ export function createForecastSection({ stage }) {
     destroy() {
       activeScene?.destroy();
       activeScene = null;
+      stopFormSpan?.();
+      stopFormSpan = null;
     },
   };
 }

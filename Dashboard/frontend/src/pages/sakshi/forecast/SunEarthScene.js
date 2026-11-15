@@ -30,9 +30,48 @@ const EARTH_X = 5.2;
 // vertical center to keep the particle stream from ever running behind it.
 const SCENE_Y = 3.1;
 
+/**
+ * Screen-space width (in vw) between where the Sun and Earth actually render,
+ * at the current window size -- a throwaway camera with the exact same fixed
+ * parameters as the real scene's (never itself added to a scene or rendered,
+ * just used for its projection math), since `.page__body` centers `.panel`
+ * on the viewport and the camera looks straight down the x=0 axis, the Sun
+ * and Earth project symmetrically around center: only the *span* between
+ * them varies with aspect ratio, not its midpoint.
+ */
+export function sunEarthSpanVW() {
+  const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+  const cam = new THREE.PerspectiveCamera(45, aspect, 0.1, 200);
+  cam.position.set(0, SCENE_Y + 1.0, 12.5);
+  cam.lookAt(0, SCENE_Y - 1.9, 0);
+  cam.updateProjectionMatrix();
+  // lookAt() only sets the local quaternion -- .project() reads
+  // matrixWorldInverse, which a camera never added to a scene (and thus
+  // never ticked by the renderer) won't have recomputed without this.
+  cam.updateMatrixWorld(true);
+  const sunNdc = new THREE.Vector3(SUN_X, SCENE_Y, 0).project(cam);
+  const earthNdc = new THREE.Vector3(EARTH_X, SCENE_Y, 0).project(cam);
+  const spanFrac = (earthNdc.x - sunNdc.x) / 2; // NDC x spans [-1, 1] == the full viewport width
+  return clamp(spanFrac * 100, 55, 94);
+}
+
+/**
+ * Keeps `el`'s width matched to that Sun<->Earth span so a card/chart placed
+ * under the 3D scene lines up with where the Sun and Earth actually render,
+ * at any window size -- recomputed on resize since aspect ratio changes it.
+ * Returns the cleanup to call on teardown.
+ */
+export function applySunEarthSpan(el) {
+  const update = () => { el.style.setProperty('--se-span', `${sunEarthSpanVW()}vw`); };
+  update();
+  window.addEventListener('resize', update);
+  return () => window.removeEventListener('resize', update);
+}
+
 export function createSunEarthScene({ stage, data, subtitle, onBack }) {
   const element = document.createElement('div');
   element.className = 'fsec';
+  const stopSpan = applySunEarthSpan(element);
   element.innerHTML = `
     <div class="fsec__hud">
       <div class="fsec__head">
@@ -165,6 +204,12 @@ export function createSunEarthScene({ stage, data, subtitle, onBack }) {
   scene.add(path);
 
   /* --------------------------------------------------------- particles */
+  // THREE.Points renders each point as a flat square by default (the raw
+  // gl_PointCoord quad) unless given an alpha-masked round sprite as `map` --
+  // this is that mask, shared by every stream so there's only one texture to
+  // dispose. White-on-transparent so each stream's own `color` still tints it.
+  const circleSprite = circleAlphaTexture();
+
   const streams = {
     electron: makeStream({ count: 420, color: 0x7fe0ff, size: 0.2, travel: 1.35 }),
     proton: makeStream({ count: 260, color: 0xff5d5d, size: 0.26, travel: 4.1 }),
@@ -183,8 +228,8 @@ export function createSunEarthScene({ stage, data, subtitle, onBack }) {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const mat = new THREE.PointsMaterial({
-      color, size, transparent: true, opacity: 0.9, depthWrite: false,
-      blending: THREE.AdditiveBlending, sizeAttenuation: true,
+      color, size, map: circleSprite, alphaTest: 0.05, transparent: true, opacity: 0.9,
+      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
     });
     const points = new THREE.Points(geom, mat);
     // Positions are rewritten every frame on the CPU; three.js would otherwise
@@ -290,6 +335,19 @@ export function createSunEarthScene({ stage, data, subtitle, onBack }) {
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
     }
+    return new THREE.CanvasTexture(c);
+  }
+
+  function circleAlphaTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.75, 'rgba(255,255,255,0.85)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(32, 32, 30, 0, Math.PI * 2); ctx.fill();
     return new THREE.CanvasTexture(c);
   }
 
@@ -431,7 +489,9 @@ export function createSunEarthScene({ stage, data, subtitle, onBack }) {
     // data's own convention) -- sliced directly, never round-tripped through
     // `new Date()`, which would parse a timezone-less string as the browser's
     // LOCAL time and silently shift the displayed clock by the viewer's offset.
-    clockEl.textContent = `${row.t.slice(5, 16).replace('T', ' ')} UTC`;
+    // Full YYYY-MM-DD date + 24h HH:MM, matching the form's input format
+    // exactly (see ForecastSection.js) -- never AM/PM, never locale-dependent.
+    clockEl.textContent = `${row.t.slice(0, 16).replace('T', ' ')} UTC`;
     readoutEl.textContent =
       `electron ${row.e.toFixed(2)}  ·  proton actual ${row.p.toFixed(2)}  ·  ` +
       `predicted ${row.pred != null ? row.pred.toFixed(2) : 'n/a'}  (ln flux)`;
@@ -449,6 +509,7 @@ export function createSunEarthScene({ stage, data, subtitle, onBack }) {
     element,
     destroy() {
       stopFrame();
+      stopSpan();
       restoreView();
       for (const s of Object.values(streams)) {
         s.points.geometry.dispose();
